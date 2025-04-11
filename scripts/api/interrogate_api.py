@@ -28,21 +28,22 @@ class InterrogateApi():
         ''' Generate mask by type '''
         pil_image = decode_base64_to_image(req.image)
 
-        # Check if the image has an alpha channel (transparency)
-        if pil_image.mode == 'RGBA':
-            # Create a white background image of the same size
-            background = Image.new('RGB', pil_image.size, (255, 255, 255))
-            # Paste the image on the background, using the alpha channel as mask
-            background.paste(pil_image, (0, 0), pil_image)
-            # Replace the original image with the one having white background
-            pil_image = background
-        # For other possible formats with transparency
-        elif pil_image.mode == 'P' and 'transparency' in pil_image.info:
-            # Convert to RGBA first to handle transparency correctly
-            pil_image = pil_image.convert('RGBA')
-            background = Image.new('RGB', pil_image.size, (255, 255, 255))
-            background.paste(pil_image, (0, 0), pil_image)
-            pil_image = background
+        if pil_image.mode != 'RGB':
+            # If image has transparency (RGBA or similar)
+            if 'A' in pil_image.mode or 'transparency' in pil_image.info:
+                # Create white background
+                background = Image.new('RGB', pil_image.size, (255, 255, 255))
+                # Handle transparency correctly by using alpha as mask if available
+                if 'A' in pil_image.mode:
+                    background.paste(pil_image, (0, 0), pil_image)
+                else:
+                    # Convert palette-based transparency to RGBA first
+                    temp = pil_image.convert('RGBA')
+                    background.paste(temp, (0, 0), temp)
+                pil_image = background
+            else:
+                # For grayscale or other modes without transparency, direct conversion
+                pil_image = pil_image.convert('RGB')
 
         result = interrogator.interrogate(pil_image)
 
